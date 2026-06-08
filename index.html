@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Automation Kit — Josh O'Brien × Startup Vegas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #080f1c;
+      --card: #0d1829;
+      --border: #1a2a40;
+      --accent: #00c2a8;
+      --violet: #7b5ef8;
+      --amber: #ffd166;
+      --n8n: #ea4b71;
+      --white: #ffffff;
+      --muted: #6b7fa0;
+      --text: #ccd6f6;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── NOISE TEXTURE OVERLAY ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 0; opacity: 0.4;
+    }
+
+    /* ── ANIMATED GRADIENT ORBS ── */
+    .orb {
+      position: fixed; border-radius: 50%;
+      filter: blur(80px); pointer-events: none; z-index: 0;
+    }
+    .orb-1 { width: 500px; height: 500px; background: rgba(0,194,168,0.12); top: -100px; left: -100px; animation: drift1 18s ease-in-out infinite; }
+    .orb-2 { width: 400px; height: 400px; background: rgba(123,94,248,0.10); bottom: 0; right: -80px; animation: drift2 22s ease-in-out infinite; }
+    @keyframes drift1 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(60px,40px)} }
+    @keyframes drift2 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-40px,-60px)} }
+
+    /* ── LAYOUT ── */
+    .container { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+
+    /* ── HEADER ── */
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 18px 0;
+    }
+    .header-inner { display: flex; justify-content: space-between; align-items: center; }
+    .logo { font-family: 'Space Mono', monospace; font-size: 13px; color: var(--accent); letter-spacing: 2px; text-transform: uppercase; }
+    .event-badge {
+      font-size: 11px; font-weight: 700; letter-spacing: 2px;
+      color: var(--bg); background: var(--amber);
+      padding: 4px 12px; border-radius: 20px; text-transform: uppercase;
+    }
+
+    /* ── HERO ── */
+    .hero { padding: 80px 0 60px; text-align: center; }
+    .hero-eyebrow {
+      display: inline-block;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+      color: var(--accent); background: rgba(0,194,168,0.08);
+      border: 1px solid rgba(0,194,168,0.25);
+      padding: 6px 16px; border-radius: 20px; margin-bottom: 28px;
+    }
+    .hero h1 {
+      font-size: clamp(36px, 6vw, 64px);
+      font-weight: 700; line-height: 1.1;
+      color: var(--white);
+      margin-bottom: 20px;
+    }
+    .hero h1 span { color: var(--accent); }
+    .hero p {
+      font-size: 18px; color: var(--muted); max-width: 560px;
+      margin: 0 auto 40px; line-height: 1.65;
+    }
+    .hero-cta {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: var(--accent); color: #080f1c;
+      font-weight: 700; font-size: 15px;
+      padding: 14px 32px; border-radius: 6px;
+      text-decoration: none; transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 0 30px rgba(0,194,168,0.25);
+    }
+    .hero-cta:hover { transform: translateY(-2px); box-shadow: 0 0 50px rgba(0,194,168,0.4); }
+
+    /* ── RESOURCES GRID ── */
+    .resources { padding: 60px 0; }
+    .section-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 12px;
+    }
+    .section-title { font-size: 32px; font-weight: 700; color: var(--white); margin-bottom: 40px; }
+
+    .resource-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+
+    .resource-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px;
+      transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+      text-decoration: none; display: block;
+    }
+    .resource-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--accent);
+      box-shadow: 0 8px 40px rgba(0,194,168,0.12);
+    }
+    .resource-card:hover .card-icon { transform: scale(1.1); }
+
+    .card-icon {
+      width: 48px; height: 48px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; margin-bottom: 16px;
+      transition: transform 0.2s;
+    }
+    .card-title { font-size: 18px; font-weight: 700; color: var(--white); margin-bottom: 8px; }
+    .card-desc { font-size: 14px; color: var(--muted); line-height: 1.6; margin-bottom: 16px; }
+    .card-tag {
+      display: inline-block;
+      font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+      text-transform: uppercase; padding: 3px 10px;
+      border-radius: 4px; background: rgba(0,194,168,0.1);
+      color: var(--accent);
+    }
+
+    /* ── SPEAKER ── */
+    .speaker { padding: 60px 0; }
+    .speaker-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 48px;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 40px;
+      align-items: center;
+    }
+    @media (max-width: 640px) { .speaker-card { grid-template-columns: 1fr; gap: 24px; } }
+    .speaker-avatar {
+      width: 100px; height: 100px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--violet));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 36px; font-weight: 700; color: var(--white);
+      flex-shrink: 0;
+    }
+    .speaker-name { font-size: 26px; font-weight: 700; color: var(--white); margin-bottom: 6px; }
+    .speaker-title { font-size: 14px; color: var(--accent); margin-bottom: 14px; font-weight: 500; }
+    .speaker-bio { font-size: 15px; color: var(--muted); line-height: 1.7; max-width: 620px; }
+
+    /* ── CONTACT FORM ── */
+    .contact { padding: 60px 0 80px; }
+    .contact-inner {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 48px;
+      max-width: 680px;
+    }
+    .contact h2 { font-size: 26px; font-weight: 700; color: var(--white); margin-bottom: 8px; }
+    .contact p { color: var(--muted); font-size: 15px; margin-bottom: 32px; }
+
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 560px) { .form-row { grid-template-columns: 1fr; } }
+
+    .form-group { margin-bottom: 20px; }
+    label { display: block; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+    input, select, textarea {
+      width: 100%; padding: 12px 16px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border); border-radius: 8px;
+      color: var(--white); font-size: 15px; font-family: inherit;
+      transition: border-color 0.2s;
+      outline: none;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    input::placeholder, textarea::placeholder { color: #3a4d6a; }
+    select option { background: #0d1829; }
+    textarea { resize: vertical; min-height: 100px; }
+
+    .submit-btn {
+      width: 100%; padding: 14px;
+      background: var(--accent); color: #080f1c;
+      font-weight: 700; font-size: 15px; font-family: inherit;
+      border: none; border-radius: 8px; cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 0 30px rgba(0,194,168,0.3); }
+
+    /* ── DIVIDER ── */
+    .divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 24px 0; text-align: center;
+      font-size: 13px; color: var(--muted);
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+
+    /* ── SUCCESS MESSAGE ── */
+    .success-msg {
+      display: none; text-align: center; padding: 24px;
+      color: var(--accent); font-weight: 700; font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+
+  <!-- HEADER -->
+  <header>
+    <div class="container">
+      <div class="header-inner">
+        <div class="logo">Josh O'Brien</div>
+        <div class="event-badge">Startup Vegas 2025</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-eyebrow">Free Automation Resource Pack</div>
+      <h1>Your <span>Digital Workforce</span><br/>Starts Here</h1>
+      <p>Everything from today's session — templates, workflows, prompts, and setup guides. Yours to keep and deploy immediately.</p>
+      <a href="#resources" class="hero-cta">
+        <span>↓</span> Grab Your Resources
+      </a>
+    </div>
+  </section>
+
+  <!-- RESOURCES -->
+  <section class="resources" id="resources">
+    <div class="container">
+      <div class="section-label">What's Inside</div>
+      <div class="section-title">5 Free Resources</div>
+      <div class="resource-grid">
+
+        <a href="#" class="resource-card" onclick="alert('Notion template download coming soon!'); return false;">
+          <div class="card-icon" style="background:rgba(0,0,0,0.3);">📋</div>
+          <div class="card-title">Notion Workspace Template</div>
+          <div class="card-desc">A complete business OS with CRM, Sales Pipeline, Project Tracker, Knowledge Base, and SOP Library — ready to duplicate into your workspace.</div>
+          <span class="card-tag">Notion Template</span>
+        </a>
+
+        <a href="#" class="resource-card" onclick="alert('n8n workflow pack download coming soon!'); return false;" style="border-color:rgba(234,75,113,0.2);">
+          <div class="card-icon" style="background:rgba(234,75,113,0.15);">⚡</div>
+          <div class="card-title">n8n Workflow Pack</div>
+          <div class="card-desc">4 pre-built workflows: Lead Capture & Qualification, Client Onboarding, Follow-Up Automation, and Weekly Reporting. Import in one click.</div>
+          <span class="card-tag" style="background:rgba(234,75,113,0.1);color:#ea4b71;">n8n Workflows</span>
+        </a>
+
+        <a href="#" class="resource-card" onclick="alert('Setup guide download coming soon!'); return false;" style="border-color:rgba(123,94,248,0.2);">
+          <div class="card-icon" style="background:rgba(123,94,248,0.15);">📖</div>
+          <div class="card-title">Step-by-Step Setup Guide</div>
+          <div class="card-desc">From zero to your first automated workflow in under an hour. Covers Notion setup, n8n installation, and connecting your tools together.</div>
+          <span class="card-tag" style="background:rgba(123,94,248,0.1);color:#7b5ef8;">Guide PDF</span>
+        </a>
+
+        <a href="#" class="resource-card" onclick="alert('Prompt library download coming soon!'); return false;" style="border-color:rgba(255,209,102,0.2);">
+          <div class="card-icon" style="background:rgba(255,209,102,0.15);">🤖</div>
+          <div class="card-title">AI Prompt Library</div>
+          <div class="card-desc">40+ production-ready prompts across Sales, Marketing, Operations, and Reporting. Plug directly into Claude, ChatGPT, or any AI in your workflows.</div>
+          <span class="card-tag" style="background:rgba(255,209,102,0.1);color:#ffd166;">AI Prompts</span>
+        </a>
+
+        <a href="#" class="resource-card" onclick="alert('Bonus resources coming soon!'); return false;" style="border-color:rgba(0,194,168,0.2);">
+          <div class="card-icon" style="background:rgba(0,194,168,0.15);">🎁</div>
+          <div class="card-title">Bonus Resources</div>
+          <div class="card-desc">Curated list of tools, integrations, and communities to accelerate your automation journey. Updated regularly with new finds.</div>
+          <span class="card-tag">Bonus</span>
+        </a>
+
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider" />
+
+  <!-- SPEAKER -->
+  <section class="speaker">
+    <div class="container">
+      <div class="section-label">Your Speaker</div>
+      <div class="speaker-card">
+        <div class="speaker-avatar">JO</div>
+        <div>
+          <div class="speaker-name">Josh O'Brien</div>
+          <div class="speaker-title">Business Automation Specialist</div>
+          <div class="speaker-bio">
+            Josh helps startups and small businesses build automation systems that replace repetitive work with intelligent workflows. He specializes in Notion + n8n implementations that let small teams operate like large organizations — without the headcount.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTACT -->
+  <section class="contact" id="contact">
+    <div class="container">
+      <div class="section-label">Get In Touch</div>
+      <div class="contact-inner">
+        <h2>Let's Talk Automation</h2>
+        <p>Have a specific workflow in mind? Ready to implement but need help? Drop your details and Josh will follow up personally.</p>
+
+        <form id="contactForm" onsubmit="handleSubmit(event)">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="name">Your Name</label>
+              <input type="text" id="name" placeholder="Jane Smith" required />
+            </div>
+            <div class="form-group">
+              <label for="email">Email Address</label>
+              <input type="email" id="email" placeholder="jane@company.com" required />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="company">Company</label>
+              <input type="text" id="company" placeholder="Acme Inc." />
+            </div>
+            <div class="form-group">
+              <label for="biztype">Business Type</label>
+              <select id="biztype">
+                <option value="">Select one…</option>
+                <option>Agency</option>
+                <option>Consultant / Freelancer</option>
+                <option>SaaS</option>
+                <option>Ecommerce</option>
+                <option>Real Estate</option>
+                <option>Local Service Business</option>
+                <option>Startup</option>
+                <option>Other</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="bottleneck">Biggest Bottleneck Right Now</label>
+            <textarea id="bottleneck" placeholder="e.g. We spend 4 hours/week manually onboarding clients…"></textarea>
+          </div>
+
+          <div class="form-group" style="display:flex;align-items:center;gap:10px;">
+            <input type="checkbox" id="newsletter" style="width:auto;" />
+            <label for="newsletter" style="margin:0;text-transform:none;font-size:14px;letter-spacing:0;">Subscribe to automation tips & workflow ideas</label>
+          </div>
+
+          <button type="submit" class="submit-btn">Send Message →</button>
+        </form>
+
+        <div class="success-msg" id="successMsg">
+          ✅ Got it! Josh will be in touch within 24 hours.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="container">
+      <p>© 2025 Josh O'Brien · Startup Vegas · <a href="mailto:josh@startupvegas.io">josh@startupvegas.io</a></p>
+    </div>
+  </footer>
+
+  <script>
+    function handleSubmit(e) {
+      e.preventDefault();
+      document.getElementById('contactForm').style.display = 'none';
+      document.getElementById('successMsg').style.display = 'block';
+    }
+
+    // Smooth reveal on scroll
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(el => {
+        if (el.isIntersecting) {
+          el.target.style.opacity = '1';
+          el.target.style.transform = 'translateY(0)';
+        }
+      });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.resource-card, .speaker-card, .contact-inner').forEach(el => {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(20px)';
+      el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+      observer.observe(el);
+    });
+  </script>
+</body>
+</html>
