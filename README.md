@@ -1,2 +1,2 @@
 ##AUTOMATIONKIT
-- Startup Vega
+- Startup Vegas Demo Site and Assets
