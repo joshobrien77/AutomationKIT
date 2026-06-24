@@ -361,11 +361,6 @@
             <textarea id="bottleneck" placeholder="e.g. We spend 4 hours/week manually onboarding clients…"></textarea>
           </div>
 
-          <div class="form-group" style="display:flex;align-items:center;gap:10px;">
-            <input type="checkbox" id="newsletter" style="width:auto;" />
-            <label for="newsletter" style="margin:0;text-transform:none;font-size:14px;letter-spacing:0;">Subscribe to automation tips & workflow ideas</label>
-          </div>
-
           <button type="submit" class="submit-btn">Send Message →</button>
         </form>
 
@@ -395,8 +390,7 @@
         email: document.getElementById('email').value,
         company: document.getElementById('company').value,
         biztype: document.getElementById('biztype').value,
-        bottleneck: document.getElementById('bottleneck').value,
-        newsletter: document.getElementById('newsletter').checked
+        bottleneck: document.getElementById('bottleneck').value
       };
 
       // Show success immediately — never block the UI on the network (this is a live demo).
