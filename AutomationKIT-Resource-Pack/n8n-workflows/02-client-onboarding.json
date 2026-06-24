@@ -1,0 +1,182 @@
+{
+  "name": "AutomationKIT — Client Onboarding (Demo 1)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "onboard-client",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-onboard-01",
+      "name": "Webhook - Onboard Client",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-640, 0],
+      "webhookId": "onboard-client-demo"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body || {};\nconst query = $json.query || {};\nconst data = body.data || body;\nconst props = (data && data.properties) ? data.properties : {};\n\nfunction extractProp(p) {\n  if (p == null) return '';\n  if (typeof p === 'string' || typeof p === 'number') return String(p);\n  if (Array.isArray(p)) return p.map(x => (x && (x.plain_text || (x.text && x.text.content))) || '').join('');\n  const t = p.type;\n  if (t === 'title' || t === 'rich_text') { const a = p[t] || []; return a.map(x => x.plain_text || '').join(''); }\n  if (t === 'email') return p.email || '';\n  if (t === 'phone_number') return p.phone_number || '';\n  if (t === 'select') return p.select ? p.select.name : '';\n  if (t === 'url') return p.url || '';\n  return '';\n}\n\nfunction getField(names) {\n  for (const n of names) {\n    if (props && props[n] != null) { const v = extractProp(props[n]); if (v) return v; }\n    if (body && body[n] != null && typeof body[n] !== 'object') return String(body[n]);\n    if (query && query[n] != null) return String(query[n]);\n  }\n  return '';\n}\n\nfunction toUuid(id) {\n  if (!id) return '';\n  const hex = String(id).replace(/[^0-9a-fA-F]/g, '');\n  if (hex.length === 32) return hex.replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5');\n  return String(id);\n}\n\nlet pageId = (data && data.id) || body.id || body.page_id || body.client_page_id || query.client_page_id || query.id || '';\nif (!pageId) { const u = getField(['url','URL','page_url']); if (u) pageId = u; }\nconst clientPageId = toUuid(pageId);\n\nconst companyName = getField(['Company','company']);\nconst contactName = getField(['Name','name','Contact Name','contact_name']);\nconst contactEmail = getField(['Email','email','contact_email']);\nconst projectType = getField(['Project Type','project_type','projectType']) || 'Automation Setup';\n\nreturn [{ json: { clientPageId, companyName, contactName, contactEmail, projectType } }];"
+      },
+      "id": "set-prepare-01",
+      "name": "Prepare Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-420, 0]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "get",
+        "pageId": { "__rl": true, "value": "={{ $('Prepare Data').item.json.clientPageId }}", "mode": "id" }
+      },
+      "id": "notion-get-01",
+      "name": "Get Client Record",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [-200, 0],
+      "credentials": { "notionApi": { "id": "", "name": "Notion account" } }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "update",
+        "pageId": { "__rl": true, "value": "={{ $('Prepare Data').item.json.clientPageId }}", "mode": "id" },
+        "propertiesUi": {
+          "propertyValues": [
+            { "key": "Status|select", "selectValue": "🟢 Client" },
+            { "key": "Start Date|date", "date": "={{ $now.toISO() }}" }
+          ]
+        }
+      },
+      "id": "notion-activate-01",
+      "name": "Activate Client",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [20, 0],
+      "credentials": { "notionApi": { "id": "", "name": "Notion account" } }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "create",
+        "databaseId": { "__rl": true, "value": "<<YOUR_PROJECTS_DATABASE_ID>>", "mode": "id" },
+        "title": "={{ $('Prepare Data').item.json.companyName }} — Launch",
+        "propertiesUi": {
+          "propertyValues": [
+            { "key": "Status|select", "selectValue": "🚀 Kickoff" },
+            { "key": "Project Type|select", "selectValue": "={{ $('Prepare Data').item.json.projectType }}" },
+            { "key": "Health|select", "selectValue": "🟢 On Track" },
+            { "key": "Start Date|date", "date": "={{ $now.toISO() }}" },
+            { "key": "Client|relation", "relationValue": ["={{ $('Prepare Data').item.json.clientPageId }}"] }
+          ]
+        }
+      },
+      "id": "notion-create-project-01",
+      "name": "Create Project Workspace",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [240, 0],
+      "credentials": { "notionApi": { "id": "", "name": "Notion account" } }
+    },
+    {
+      "parameters": {
+        "fromEmail": "josh@startupvegas.io",
+        "toEmail": "={{ $('Prepare Data').item.json.contactEmail }}",
+        "subject": "=Welcome aboard, {{ $('Prepare Data').item.json.contactName.split(' ')[0] }}!",
+        "emailFormat": "text",
+        "text": "=Hi {{ $('Prepare Data').item.json.contactName }},\n\nWelcome aboard — we're thrilled to have {{ $('Prepare Data').item.json.companyName }} on board! Your project is officially underway.\n\nWhat happens next:\n• Your project workspace is already set up and live\n• We'll reach out within 24 hours to schedule your kickoff call\n• You'll have everything you need to hit the ground running\n\nExcited to get started,\nJosh O'Brien — AutomationKIT",
+        "options": {}
+      },
+      "id": "smtp-welcome-01",
+      "name": "Send Welcome Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [460, 0],
+      "credentials": { "smtp": { "id": "", "name": "SMTP account" } }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "create",
+        "databaseId": { "__rl": true, "value": "<<YOUR_TASKS_DATABASE_ID>>", "mode": "id" },
+        "title": "=Kickoff Call — {{ $('Prepare Data').item.json.companyName }}",
+        "propertiesUi": {
+          "propertyValues": [
+            { "key": "Status|select", "selectValue": "📥 To Do" },
+            { "key": "Priority|select", "selectValue": "🟠 High" },
+            { "key": "Due Date|date", "date": "={{ $now.plus({ days: 2 }).toISO() }}" },
+            { "key": "Project|relation", "relationValue": ["={{ $('Create Project Workspace').item.json.id }}"] }
+          ]
+        }
+      },
+      "id": "notion-task-kickoff-01",
+      "name": "Create Kickoff Task",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [680, 0],
+      "credentials": { "notionApi": { "id": "", "name": "Notion account" } }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "create",
+        "databaseId": { "__rl": true, "value": "<<YOUR_TASKS_DATABASE_ID>>", "mode": "id" },
+        "title": "=Requirements & Setup — {{ $('Prepare Data').item.json.companyName }}",
+        "propertiesUi": {
+          "propertyValues": [
+            { "key": "Status|select", "selectValue": "📥 To Do" },
+            { "key": "Priority|select", "selectValue": "🟡 Medium" },
+            { "key": "Due Date|date", "date": "={{ $now.plus({ days: 5 }).toISO() }}" },
+            { "key": "Project|relation", "relationValue": ["={{ $('Create Project Workspace').item.json.id }}"] }
+          ]
+        }
+      },
+      "id": "notion-task-setup-01",
+      "name": "Create Setup Task",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [900, 0],
+      "credentials": { "notionApi": { "id": "", "name": "Notion account" } }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"onboarded\", \"project_id\": $('Create Project Workspace').item.json.id } }}",
+        "options": {}
+      },
+      "id": "respond-01",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1120, 0]
+    },
+    {
+      "parameters": {
+        "content": "Demo 1 — Client Onboarding. Trigger: the Onboard Client button (Send webhook action) on a CRM row. Notion sends its own payload (page ID + selected properties); the Prepare Data code node unwraps it. Free plan: use Open page or URL with query params and switch this Webhook node to GET.",
+        "height": 240,
+        "width": 420,
+        "color": 4
+      },
+      "id": "sticky-onboard-01",
+      "name": "Demo 1 Notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-640, -360]
+    }
+  ],
+  "connections": {
+    "Webhook - Onboard Client": { "main": [[{ "node": "Prepare Data", "type": "main", "index": 0 }]] },
+    "Prepare Data": { "main": [[{ "node": "Get Client Record", "type": "main", "index": 0 }]] },
+    "Get Client Record": { "main": [[{ "node": "Activate Client", "type": "main", "index": 0 }]] },
+    "Activate Client": { "main": [[{ "node": "Create Project Workspace", "type": "main", "index": 0 }]] },
+    "Create Project Workspace": { "main": [[{ "node": "Send Welcome Email", "type": "main", "index": 0 }]] },
+    "Send Welcome Email": { "main": [[{ "node": "Create Kickoff Task", "type": "main", "index": 0 }]] },
+    "Create Kickoff Task": { "main": [[{ "node": "Create Setup Task", "type": "main", "index": 0 }]] },
+    "Create Setup Task": { "main": [[{ "node": "Respond", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "pinData": {}
+}

@@ -1,0 +1,164 @@
+{
+  "name": "AutomationKIT — AI Lead Qualification (Demo 2)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-intake",
+        "responseMode": "responseNode",
+        "options": { "allowedOrigins": "*" }
+      },
+      "id": "webhook-lead-01",
+      "name": "Webhook - Lead Intake",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-760, 0],
+      "webhookId": "lead-intake-demo"
+    },
+    {
+      "parameters": {
+        "jsCode": "const b = $json.body || {};\nconst prompt = `You are a B2B sales lead qualification assistant for an automation consulting business. Analyze this inbound website lead and score it for the sales team.\n\nLead details:\n- Name: ${b.name}\n- Email: ${b.email}\n- Company: ${b.company}\n- Business type: ${b.biztype}\n- Biggest bottleneck: ${b.bottleneck}\n\nReturn ONLY a valid JSON object with no markdown, no code fences, and no commentary. Use exactly these keys:\n- lead_score: number from 1 to 10 (one decimal allowed)\n- industry: one of Home Services, Agency, SaaS, Ecommerce, Real Estate, Consulting, Prof. Services, Local Service, Other\n- company_size: short string such as 1-10 or 11-50\n- buying_intent: one of High, Medium, Low\n- priority: one of Urgent, High, Medium, Low\n- opportunity_low: number in USD\n- opportunity_high: number in USD\n- automation_needs: array of short strings\n- executive_summary: a 2 to 3 sentence summary written for the salesperson\n- next_action: one sentence recommended next step\n\nExample shape: {lead_score: 8.5, industry: Home Services, company_size: 1-10, buying_intent: High, priority: High, opportunity_low: 5000, opportunity_high: 15000, automation_needs: [dispatch automation, customer notifications], executive_summary: ..., next_action: ...}`;\nreturn [{ json: { anthropicBody: { model: 'claude-haiku-4-5-20251001', max_tokens: 1024, messages: [{ role: 'user', content: prompt }] } } }];"
+      },
+      "id": "code-build-01",
+      "name": "Build Claude Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-540, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.anthropicBody }}",
+        "options": {}
+      },
+      "id": "http-claude-01",
+      "name": "Claude - Score Lead",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-320, 0],
+      "credentials": { "httpHeaderAuth": { "id": "", "name": "Anthropic API" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const resp = $json || {};\nlet text = '';\nif (resp.content && resp.content[0]) { text = resp.content[0].text; }\nelse if (resp.body && resp.body.content && resp.body.content[0]) { text = resp.body.content[0].text; }\nlet clean = String(text).replace(/```json/gi, '').replace(/```/g, '').trim();\nlet parsed = {};\ntry { parsed = JSON.parse(clean); } catch (e) { parsed = {}; }\nconst body = $('Webhook - Lead Intake').first().json.body || {};\nconst prioMap = { 'Urgent': '🔴 Urgent', 'High': '🟠 High', 'Medium': '🟡 Medium', 'Low': '⚪ Low' };\nconst priority = prioMap[parsed.priority] || '🟡 Medium';\nreturn [{ json: {\n  name: body.name || '',\n  email: body.email || '',\n  company: body.company || '',\n  bottleneck: body.bottleneck || '',\n  lead_score: parsed.lead_score != null ? parsed.lead_score : 5,\n  industry: parsed.industry || 'Other',\n  company_size: parsed.company_size || '',\n  buying_intent: parsed.buying_intent || 'Medium',\n  priority: priority,\n  opportunity_low: parsed.opportunity_low != null ? parsed.opportunity_low : 0,\n  opportunity_high: parsed.opportunity_high != null ? parsed.opportunity_high : 0,\n  automation_needs: parsed.automation_needs || [],\n  executive_summary: parsed.executive_summary || '',\n  next_action: parsed.next_action || ''\n}}];"
+      },
+      "id": "code-normalize-01",
+      "name": "Normalize Lead Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-100, 0]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "create",
+        "databaseId": { "__rl": true, "value": "<<YOUR_CRM_DATABASE_ID>>", "mode": "id" },
+        "title": "={{ $json.name }}",
+        "propertiesUi": {
+          "propertyValues": [
+            { "key": "Company|rich_text", "textContent": "={{ $json.company }}" },
+            { "key": "Email|email", "emailValue": "={{ $json.email }}" },
+            { "key": "Status|select", "selectValue": "🔵 Lead" },
+            { "key": "Lead Score|number", "numberValue": "={{ $json.lead_score }}" },
+            { "key": "Priority|select", "selectValue": "={{ $json.priority }}" },
+            { "key": "Industry|select", "selectValue": "={{ $json.industry }}" },
+            { "key": "Buying Intent|select", "selectValue": "={{ $json.buying_intent }}" },
+            { "key": "Opp Low|number", "numberValue": "={{ $json.opportunity_low }}" },
+            { "key": "Opp High|number", "numberValue": "={{ $json.opportunity_high }}" },
+            { "key": "Source|select", "selectValue": "Website Form" },
+            { "key": "AI Summary|rich_text", "textContent": "={{ $json.executive_summary }}" },
+            { "key": "Challenge|rich_text", "textContent": "={{ $json.bottleneck }}" },
+            { "key": "Lead Date|date", "date": "={{ $now.toISO() }}" }
+          ]
+        }
+      },
+      "id": "notion-create-lead-01",
+      "name": "Create Lead Record",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [120, 0],
+      "credentials": { "notionApi": { "id": "", "name": "Notion account" } }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"ok\", \"score\": $('Normalize Lead Data').item.json.lead_score } }}",
+        "options": {}
+      },
+      "id": "respond-lead-01",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [340, -120]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            { "id": "cond1", "leftValue": "={{ $('Normalize Lead Data').item.json.lead_score }}", "rightValue": 7, "operator": { "type": "number", "operation": "gte" } }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-priority-01",
+      "name": "If High Priority",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [340, 120]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://hooks.slack.com/services/REPLACE/WITH/YOUR/WEBHOOK",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"text\": '🔥 High-priority lead: ' + $('Normalize Lead Data').item.json.name + ' (' + $('Normalize Lead Data').item.json.company + ') — score ' + $('Normalize Lead Data').item.json.lead_score + '/10. ' + $('Normalize Lead Data').item.json.next_action } }}",
+        "options": {}
+      },
+      "id": "slack-alert-01",
+      "name": "Slack Alert (optional)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [560, 120],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "content": "## 🤖 Demo 2 — AI Lead Qualification\n\n**Trigger:** the live landing-page contact form POSTs `{ name, email, company, biztype, bottleneck, newsletter }` to this webhook.\n\n**What fires, in order:**\n1. Build the Claude request from the form fields\n2. Claude Haiku 4.5 scores the lead and returns JSON (score, industry, intent, priority, opportunity range, summary, next action)\n3. Code node strips any fences, parses the JSON, maps priority to the emoji option\n4. Create the scored record in the Notion CRM\n5. Respond `{ status: \"ok\", score }` to the form\n6. If score ≥ 7, fire the optional Slack alert\n\n**Credentials needed:** Anthropic API (httpHeaderAuth, header name `x-api-key`) + Notion. Slack node is disabled by default — paste your Incoming Webhook URL and enable it to use it.",
+        "height": 360,
+        "width": 480,
+        "color": 5
+      },
+      "id": "sticky-lead-01",
+      "name": "Demo 2 Notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-760, -420]
+    }
+  ],
+  "connections": {
+    "Webhook - Lead Intake": { "main": [[{ "node": "Build Claude Request", "type": "main", "index": 0 }]] },
+    "Build Claude Request": { "main": [[{ "node": "Claude - Score Lead", "type": "main", "index": 0 }]] },
+    "Claude - Score Lead": { "main": [[{ "node": "Normalize Lead Data", "type": "main", "index": 0 }]] },
+    "Normalize Lead Data": { "main": [[{ "node": "Create Lead Record", "type": "main", "index": 0 }]] },
+    "Create Lead Record": { "main": [[{ "node": "Respond", "type": "main", "index": 0 }, { "node": "If High Priority", "type": "main", "index": 0 }]] },
+    "If High Priority": { "main": [[{ "node": "Slack Alert (optional)", "type": "main", "index": 0 }], []] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "pinData": {}
+}

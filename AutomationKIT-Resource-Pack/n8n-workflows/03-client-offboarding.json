@@ -1,0 +1,91 @@
+{
+  "name": "AutomationKIT — Client Offboarding",
+  "nodes": [
+    {
+      "parameters": { "httpMethod": "POST", "path": "offboard-client", "responseMode": "responseNode", "options": {} },
+      "id": "wh-offboard-01", "name": "Webhook - Offboard Client", "type": "n8n-nodes-base.webhook", "typeVersion": 2, "position": [-680, 0], "webhookId": "offboard-client-demo"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parses Notion's button webhook payload (or simple/query fallback).\nconst body = $json.body || {};\nconst query = $json.query || {};\nconst data = body.data || body;\nconst props = (data && data.properties) ? data.properties : {};\nfunction extract(p){ if(p==null) return ''; if(typeof p==='string'||typeof p==='number') return String(p); if(Array.isArray(p)) return p.map(x=>(x&&(x.plain_text||(x.text&&x.text.content)))||'').join(''); const t=p.type; if(t==='title'||t==='rich_text'){const a=p[t]||[];return a.map(x=>x.plain_text||'').join('');} if(t==='email') return p.email||''; if(t==='select') return p.select?p.select.name:''; return ''; }\nfunction field(names){ for(const n of names){ if(props&&props[n]!=null){const v=extract(props[n]); if(v) return v;} if(body&&body[n]!=null&&typeof body[n]!=='object') return String(body[n]); if(query&&query[n]!=null) return String(query[n]); } return ''; }\nconst clientPageId = (data&&data.id)||body.id||body.client_page_id||query.client_page_id||'';\nconst projectPageId = (props.Projects&&props.Projects.relation&&props.Projects.relation[0]&&props.Projects.relation[0].id) || body.project_id || query.project_id || '';\nreturn [{ json: { clientPageId, projectPageId, companyName: field(['Company','company']), contactName: field(['Name','name','contact_name']), contactEmail: field(['Email','email','contact_email']) } }];"
+      },
+      "id": "set-offb-01", "name": "Parse Offboard Payload", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [-460, 0]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage", "operation": "update",
+        "pageId": { "__rl": true, "value": "={{ $('Parse Offboard Payload').item.json.clientPageId }}", "mode": "id" },
+        "propertiesUi": { "propertyValues": [ { "key": "Status|select", "selectValue": "⭐ Alumni" } ] }
+      },
+      "id": "notion-alumni-01", "name": "Set Client Alumni", "type": "n8n-nodes-base.notion", "typeVersion": 2.2, "position": [-240, 0],
+      "credentials": { "notionApi": { "id": "", "name": "Notion account" } }
+    },
+    {
+      "parameters": {
+        "fromEmail": "you@yourdomain.com",
+        "toEmail": "={{ $('Parse Offboard Payload').item.json.contactEmail }}",
+        "subject": "=Thank you, {{ $('Parse Offboard Payload').item.json.contactName.split(' ')[0] }}!",
+        "emailFormat": "text",
+        "text": "=Hi {{ $('Parse Offboard Payload').item.json.contactName }},\n\nThank you for trusting us with {{ $('Parse Offboard Payload').item.json.companyName }} — it's been a pleasure. Your project is wrapped up and complete on our end.\n\n• We'll send a short recap and any final assets\n• If we delivered value, a testimonial or referral means the world\n• The door is always open — reach out anytime\n\nWishing you continued success,\nThe Team",
+        "options": {}
+      },
+      "id": "smtp-wrap-01", "name": "Send Wrap-up Email", "type": "n8n-nodes-base.emailSend", "typeVersion": 2.1, "position": [-20, -150],
+      "credentials": { "smtp": { "id": "", "name": "SMTP account" } }
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ { \"status\": \"offboarded\" } }}", "options": {} },
+      "id": "respond-offb-01", "name": "Respond", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1.1, "position": [200, -150]
+    },
+    {
+      "parameters": {
+        "conditions": { "options": { "caseSensitive": true, "typeValidation": "loose" }, "conditions": [ { "id": "c1", "leftValue": "={{ $('Parse Offboard Payload').item.json.projectPageId }}", "rightValue": "", "operator": { "type": "string", "operation": "notEmpty" } } ], "combinator": "and" },
+        "options": {}
+      },
+      "id": "if-proj-01", "name": "Has Project?", "type": "n8n-nodes-base.if", "typeVersion": 2.2, "position": [-20, 150]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage", "operation": "update",
+        "pageId": { "__rl": true, "value": "={{ $('Parse Offboard Payload').item.json.projectPageId }}", "mode": "id" },
+        "propertiesUi": { "propertyValues": [ { "key": "Status|select", "selectValue": "✅ Complete" }, { "key": "Offboarded|checkbox", "checkboxValue": true } ] }
+      },
+      "id": "notion-complete-01", "name": "Mark Project Complete", "type": "n8n-nodes-base.notion", "typeVersion": 2.2, "position": [200, 150],
+      "credentials": { "notionApi": { "id": "", "name": "Notion account" } }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage", "operation": "create",
+        "databaseId": { "__rl": true, "value": "<<YOUR_TASKS_DATABASE_ID>>", "mode": "id" },
+        "title": "=Request Testimonial — {{ $('Parse Offboard Payload').item.json.companyName }}",
+        "propertiesUi": { "propertyValues": [ { "key": "Status|select", "selectValue": "📥 To Do" }, { "key": "Priority|select", "selectValue": "🟡 Medium" }, { "key": "Due Date|date", "date": "={{ $now.plus({ days: 7 }).toISO() }}" }, { "key": "Project|relation", "relationValue": ["={{ $('Parse Offboard Payload').item.json.projectPageId }}"] } ] }
+      },
+      "id": "notion-testi-01", "name": "Create Testimonial Task", "type": "n8n-nodes-base.notion", "typeVersion": 2.2, "position": [420, 60],
+      "credentials": { "notionApi": { "id": "", "name": "Notion account" } }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage", "operation": "create",
+        "databaseId": { "__rl": true, "value": "<<YOUR_TASKS_DATABASE_ID>>", "mode": "id" },
+        "title": "=Archive Project Assets — {{ $('Parse Offboard Payload').item.json.companyName }}",
+        "propertiesUi": { "propertyValues": [ { "key": "Status|select", "selectValue": "📥 To Do" }, { "key": "Priority|select", "selectValue": "⚪ Low" }, { "key": "Due Date|date", "date": "={{ $now.plus({ days: 3 }).toISO() }}" }, { "key": "Project|relation", "relationValue": ["={{ $('Parse Offboard Payload').item.json.projectPageId }}"] } ] }
+      },
+      "id": "notion-arch-01", "name": "Create Archive Task", "type": "n8n-nodes-base.notion", "typeVersion": 2.2, "position": [420, 240],
+      "credentials": { "notionApi": { "id": "", "name": "Notion account" } }
+    },
+    {
+      "parameters": { "content": "## Client Offboarding\n\nTrigger: an **Offboard Client** button on a CRM row (Send webhook). Tick **Company, Name, Email, Projects** so the workflow can find the linked project.\n\nWhat it does: sets the client to ⭐ Alumni, sends a wrap-up email, and (if a project is linked) marks it ✅ Complete + Offboarded and creates testimonial + asset-archival tasks.\n\nReplace `<<YOUR_TASKS_DATABASE_ID>>` and attach your Notion + SMTP credentials.", "height": 320, "width": 420, "color": 4 },
+      "id": "sticky-offb-01", "name": "Notes", "type": "n8n-nodes-base.stickyNote", "typeVersion": 1, "position": [-680, -360]
+    }
+  ],
+  "connections": {
+    "Webhook - Offboard Client": { "main": [[{ "node": "Parse Offboard Payload", "type": "main", "index": 0 }]] },
+    "Parse Offboard Payload": { "main": [[{ "node": "Set Client Alumni", "type": "main", "index": 0 }]] },
+    "Set Client Alumni": { "main": [[{ "node": "Send Wrap-up Email", "type": "main", "index": 0 }, { "node": "Has Project?", "type": "main", "index": 0 }]] },
+    "Send Wrap-up Email": { "main": [[{ "node": "Respond", "type": "main", "index": 0 }]] },
+    "Has Project?": { "main": [[{ "node": "Mark Project Complete", "type": "main", "index": 0 }], []] },
+    "Mark Project Complete": { "main": [[{ "node": "Create Testimonial Task", "type": "main", "index": 0 }, { "node": "Create Archive Task", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "pinData": {}
+}
