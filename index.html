@@ -384,10 +384,33 @@
   </footer>
 
   <script>
+    // n8n "lead-intake" webhook (Demo 2 — AI Lead Qualification)
+    const N8N_WEBHOOK_URL = "https://obrienretailservices.app.n8n.cloud/webhook/lead-intake";
+
     function handleSubmit(e) {
       e.preventDefault();
+
+      const payload = {
+        name: document.getElementById('name').value,
+        email: document.getElementById('email').value,
+        company: document.getElementById('company').value,
+        biztype: document.getElementById('biztype').value,
+        bottleneck: document.getElementById('bottleneck').value,
+        newsletter: document.getElementById('newsletter').checked
+      };
+
+      // Show success immediately — never block the UI on the network (this is a live demo).
       document.getElementById('contactForm').style.display = 'none';
       document.getElementById('successMsg').style.display = 'block';
+
+      // Fire the lead to n8n in the background; swallow any error so nothing ever hangs.
+      try {
+        fetch(N8N_WEBHOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).catch(function () {});
+      } catch (err) { /* no-op */ }
     }
 
     // Smooth reveal on scroll
